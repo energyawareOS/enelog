@@ -10,6 +10,9 @@
 #include <time.h>
 #include <getopt.h>
 
+//NVML
+#include <nvml.h>
+
 static unsigned long     interval = 1000000; // Default interval in usecs
 static unsigned timeout = 120; // Default timeout in seconds
 
@@ -94,6 +97,48 @@ wait_until_aligned_interval(void)
                 usleep(total_wait);
 }
 
+/*GPU 전력 측정*/
+unsigned int gpu_count = 0;
+nvmlDevice_t gpu_handle[16];  //최대 16개
+
+void init_nvml(void)
+{
+    if (nvmlInit_v2() != NVML_SUCCESS) {
+        fprintf(stderr, "NVML init failed\n");
+        exit(EXIT_FAILURE);
+    }
+    nvmlDeviceGetCount_v2(&gpu_count);
+    for (unsigned int i = 0; i < gpu_count; i++)
+        nvmlDeviceGetHandleByIndex_v2(i, &gpu_handle[i]);
+}
+
+void shutdown_nvml(void)
+{
+    nvmlShutdown();
+}
+
+/*GPU 전력 측정 함수*/
+static double read_gpu_power(double *p0, double *p1)
+{
+        unsigned int n=(gpu_count<2)?gpu_count:2;
+        double power_w[2]={0.00,0.00};
+
+        //2개의 GPU 전력측정
+        for (unsigned int i=0;i<n;i++){
+                unsigned int mw=0;
+                if(nvmlDeviceGetPowerUsage(gpu_handle[i],&mw)==NVML_SUCCESS){
+                        power_w[i]=mw/1000.00;
+                }else{
+                        power_w[i]=0.00;
+                }
+        }
+        //개별 전력
+        *p0=power_w[0];
+        *p1=(n>=2)?power_w[1]:0.00;
+        //개별 전력과 평균전력 모두 반환
+        return (n==0)?0.0:(n==1)?power_w[0]:(power_w[0]+power_w[1])/2.0;
+}
+
 static void
 log_energy(int fd)
 {
@@ -119,8 +164,16 @@ log_energy(int fd)
                         double  energy_cur = read_energy(fd);
                         double  energy = energy_cur - energy_last;
                         double  power = energy / (elapsed / 1000000);
+
+                        //gpu
+                        double g0,g1;
+                        double gpu_avg= read_gpu_power(&g0, &g1);
+                        double gpu_energy=gpu_avg * (elapsed / 1000000);
+
                         setup_current_time_str(timebuf);
-                        printf("%s %.3f %.3f\n", timebuf, power, energy);
+                        printf("%s %.3f %.3f %.3f %.3f %.3f %.3f \n",
+                                timebuf, power, energy, g0,g1,gpu_avg, gpu_energy);
+
                         fflush(stdout);
                         energy_last = energy_cur;
                         ts_last = ts_cur;
@@ -133,7 +186,7 @@ log_energy(int fd)
 static void
 parse_args(int argc, char *argv[])
 {
-        int     c, opt;
+        int     c;
 
         while ((c = getopt(argc, argv, "i:t:h")) != -1) {
                 switch (c) {
@@ -157,9 +210,11 @@ parse_args(int argc, char *argv[])
         }
 }
 
+
 int
 main(int argc, char *argv[])
-{
+{       
+        init_nvml();
         int     fd;
 
         parse_args(argc, argv);
@@ -169,5 +224,6 @@ main(int argc, char *argv[])
         log_energy(fd);
 
         close(fd);
+        shutdown_nvml();
         return 0;
 }
