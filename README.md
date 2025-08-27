@@ -13,7 +13,7 @@
 
 ## Requirements
 
-- **OS:** Linux with `/sys/class/powercap` (RAPL) support  
+- **OS:** Linux with `/sys/class/powercap` (RAPL) support. You may need to have root privileges.
 - **CPU:** Intel processor with RAPL package—and optionally DRAM—domains  
 - **GPU (optional):** NVIDIA driver + NVML (`libnvidia-ml.so`) if using `-g`/`-G`  
 - **Permissions:** Reading `energy_uj` may require `sudo` on some systems
@@ -65,10 +65,10 @@ cmake --build build
 - `-D`: Prepend MM-DD to the timestamp (otherwise HH:MM:SS)
 - `-E`: Include energy(J) fields in output (otherwise power only)
 - `-H`: Print a one-line header describing the output columns
-- `-h <help>`: Show help and exit
+- `-h`: Show help and exit
 
 GPU (requires NVML and a build without NO_NVML):
-- `-g <GPU measure>`: Enable GPU power/energy measurement via NVML
+- `-g`: Enable GPU power/energy measurement via NVML
 - `-G`: Also print per-GPU metrics(implies -g)
 
 ## Output Schema 
