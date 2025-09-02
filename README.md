@@ -7,9 +7,6 @@
 - CPU package power & energy via Intel RAPL
 - Optional DRAM domain power & energy (`-d`)
 - Optional GPU total and per-GPU power & energy via NVIDIA NVML (`-g`, `-G`)
-- Interval-aligned sampling using absolute sleeps (reduces drift)
-- Minimal single-file C codebase
-- CMake-based build
 
 ## Requirements
 
@@ -31,9 +28,9 @@ cmake --build build
 
 After building, the executable will be available at `build/enelog`.
 
-## Building with NVML 
+## Building
 
-If CMake doesn't automatically find NVML, provide include/lib paths:
+- CPU-only
 
 ```bash
 cmake -B build \
@@ -45,12 +42,10 @@ cmake --build build
 
 Adjust include/lib paths for your distribution (e.g., `/usr/lib`, `/lib/x86_64-linux-gnu`, `/usr/local/cuda/lib64`).
 
-## Building without NVML (CPU-only)
-
-Disable GPU features at compile time:
+- NVML-enabled build (includ GPU)
 
 ```bash
-cmake -B build -DNO_NVML=ON -DCMAKE_BUILD_TYPE=Release
+cmake -B build -DUSE_NVML=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
@@ -67,7 +62,7 @@ cmake --build build
 - `-H`: Print a one-line header describing the output columns
 - `-h`: Show help and exit
 
-GPU (requires NVML and a build without NO_NVML):
+GPU (requires NVML and a build with USE_NVML=ON):
 - `-g`: Enable GPU power/energy measurement via NVML
 - `-G`: Also print per-GPU metrics(implies -g)
 
@@ -128,13 +123,13 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
   - If your system lacks a DRAM RAPL domain, using `-d` will fail. Omit `-d` in that case.
 
 - **GPU measurement (`-g`, `-G`)**
-  - Requires NVIDIA driver + NVML (`libnvidia-ml.so`) and a build **without** `-DNO_NVML=ON`.
+  - Requires NVIDIA driver + NVML (`libnvidia-ml.so` and a build **with** `-DUSE_NVML=ON`).
   - `-G` includes per-GPU metrics and implies `-g`.
   - If NVML isn’t available or no NVIDIA GPUs are present, GPU measurement will not work.
 
 - **Timing & alignment**
-  - Sampling is aligned to wall-clock boundaries (e.g., 1 s at `...:00`, `...:01`, …) to reduce drift.
-  - The very first wait can be shorter than the nominal interval due to alignment.
+  - Using absolute time scheduling, sampling is aligned to second-of-minute boundaries. 
+  - By this, timing alignment is consistent for running
 
 - **Units & fields**
   - Power is in **watts (W)** and energy in **joules (J)**.
